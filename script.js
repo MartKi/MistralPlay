@@ -122,7 +122,6 @@ function getLocation() {
                 const { latitude, longitude } = position.coords;
                 const cacheKey = `${latitude.toFixed(2)},${longitude.toFixed(2)}`;
                 
-                // Check cache first
                 if (locationCache.has(cacheKey)) {
                     locationElement.textContent = locationCache.get(cacheKey);
                     fetchWeatherData(latitude, longitude);
@@ -146,15 +145,12 @@ async function fetchWeatherData(lat, lon) {
     try {
         showLoading();
         
-        // Hent nuværende vejr og 5-dages prognose i ÉN anmodning
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,windspeed_10m,pressure_msl&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`;
         
-        // Add timeout to the fetch
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         
         const response = await fetch(url, { signal: controller.signal });
-        
         clearTimeout(timeoutId);
         
         if (!response.ok) {
@@ -162,7 +158,6 @@ async function fetchWeatherData(lat, lon) {
         }
         
         const data = await response.json();
-        
         displayCurrentWeather(data, lat, lon);
         displayForecast(data);
         updateLastUpdated();
@@ -180,18 +175,14 @@ function displayCurrentWeather(data, lat, lon) {
     const { current_weather, hourly, timezone } = data;
     const { temperature, weathercode, windspeed } = current_weather;
     
-    // Get location name from timezone (synchronous - fast!)
     const locationName = getLocationFromTimezone(timezone, lat, lon);
     locationElement.textContent = locationName;
     
-    // Cache the location
     const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
     locationCache.set(cacheKey, locationName);
     
-    // Temperatur
     temperatureElement.textContent = Math.round(temperature);
     
-    // Vejrikon (dag/nat)
     const now = new Date();
     const hours = now.getHours();
     const isDay = hours >= 6 && hours < 18;
@@ -199,14 +190,11 @@ function displayCurrentWeather(data, lat, lon) {
     const iconClass = iconCode || (isDay ? 'wi-day-cloudy' : 'wi-night-alt-cloudy');
     weatherIconElement.className = `wi ${iconClass}`;
     
-    // Beskrivelse
     const description = weatherDescriptions[weathercode] || 'Ukendt vejr';
     descriptionElement.textContent = description;
     
-    // Føles som (approximation)
     feelsLikeElement.textContent = `${Math.round(temperature)}°C`;
     
-    // Luftfugtighed (get current hourly value)
     const currentHour = now.getHours();
     const hourlyIndex = hourly.time.findIndex(t => {
         const date = new Date(t);
@@ -216,27 +204,23 @@ function displayCurrentWeather(data, lat, lon) {
     const humidity = hourlyIndex !== -1 ? hourly.relativehumidity_2m[hourlyIndex] : 0;
     humidityElement.textContent = `${Math.round(humidity)}%`;
     
-    // Vind (km/t - Open-Meteo gives m/s, convert to km/h)
-    windElement.textContent = `${Math.round(windspeed * 3.6)} km/t`;
+    // Vind i m/s (Open-Meteo returnerer allerede m/s)
+    windElement.textContent = `${windspeed.toFixed(1)} m/s`;
     
-    // Lufttryk (hPa)
     const pressure = hourlyIndex !== -1 ? hourly.pressure_msl[hourlyIndex] : 0;
     pressureElement.textContent = `${Math.round(pressure)} hPa`;
 }
 
-// Hent stednavn fra timezone (hurtig, synkron funktion)
+// Hent stednavn fra timezone
 function getLocationFromTimezone(timezone, lat, lon) {
-    // Timezone format: "Continent/City" or "Continent/Region/City"
     const parts = timezone.split('/');
     
     if (parts.length >= 2) {
-        // Replace underscores with spaces
         const city = parts[parts.length - 1].replace(/_/g, ' ');
         const region = parts.length > 2 ? parts[1].replace(/_/g, ' ') : parts[0].replace(/_/g, ' ');
         return `${city}, ${region}`;
     }
     
-    // Fallback: show coordinates
     return `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
 }
 
@@ -247,7 +231,6 @@ function displayForecast(data) {
     const { daily } = data;
     const { time, weathercode, temperature_2m_max, temperature_2m_min } = daily;
     
-    // Vis de næste 5 dage
     const forecastsToShow = Math.min(5, time.length);
     
     for (let i = 0; i < forecastsToShow; i++) {
@@ -260,7 +243,6 @@ function displayForecast(data) {
         const maxTemp = temperature_2m_max[i];
         const minTemp = temperature_2m_min[i];
         
-        // Use day icons for forecast
         const iconClass = weatherIconMap[code] || 'wi-cloud';
         const desc = weatherDescriptions[code] || 'Ukendt';
         
@@ -273,7 +255,7 @@ function displayForecast(data) {
                 <span class="max-temp">${Math.round(maxTemp)}°</span>
                 <span class="min-temp">${Math.round(minTemp)}°</span>
             </div>
-            <div class="forecast-desc" style="font-size: 0.8rem; color: #666; margin-top: 5px;">${desc}</div>
+            <div class="forecast-desc">${desc}</div>
         `;
         
         forecastContainer.appendChild(forecastCard);
@@ -346,10 +328,8 @@ function getErrorMessage(error) {
 
 // Initialiser når siden er loadet
 document.addEventListener('DOMContentLoaded', () => {
-    // Start med at hente position og vejr
     getLocation();
     
-    // Opdater vejret hver 10. minut
     setInterval(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -358,7 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     fetchWeatherData(latitude, longitude);
                 },
                 () => {
-                    // If geolocation fails, use cached location or default
                     const cachedKey = Array.from(locationCache.keys())[0];
                     if (cachedKey) {
                         const [lat, lon] = cachedKey.split(',').map(parseFloat);
