@@ -21,67 +21,64 @@ const months = ['Januar', 'Februar', 'Marts', 'April', 'Maj', 'Juni',
                 'Juli', 'August', 'September', 'Oktober', 'November', 'December'];
 
 // Weather Icons mapping baseret på WMO koder
-// Open-Meteo bruger WMO vejrkoder: https://www.nco.ncep.noaa.gov/pmb/docs/on388/table2.html
 const weatherIconMap = {
-    // 0: Clear sky
     0: 'wi-day-sunny',
-    // 1: Mainly clear
     1: 'wi-day-sunny',
-    // 2: Partly cloudy
     2: 'wi-day-cloudy',
-    // 3: Overcast
     3: 'wi-cloudy',
-    // 45: Fog
     45: 'wi-fog',
-    // 48: Depositing rime fog
     48: 'wi-fog',
-    // 51: Light drizzle
     51: 'wi-day-sprinkle',
-    // 53: Moderate drizzle
     53: 'wi-day-sprinkle',
-    // 55: Dense drizzle
     55: 'wi-day-sprinkle',
-    // 56: Light freezing drizzle
     56: 'wi-day-sleet',
-    // 57: Dense freezing drizzle
     57: 'wi-day-sleet',
-    // 61: Slight rain
     61: 'wi-day-rain',
-    // 63: Moderate rain
     63: 'wi-day-rain',
-    // 65: Heavy rain
     65: 'wi-day-rain',
-    // 66: Light freezing rain
     66: 'wi-day-sleet',
-    // 67: Heavy freezing rain
     67: 'wi-day-sleet',
-    // 71: Slight snow
     71: 'wi-day-snow',
-    // 73: Moderate snow
     73: 'wi-day-snow',
-    // 75: Heavy snow
     75: 'wi-day-snow',
-    // 77: Snow grains
     77: 'wi-day-snow',
-    // 80: Slight rain showers
     80: 'wi-day-showers',
-    // 81: Moderate rain showers
     81: 'wi-day-showers',
-    // 82: Violent rain showers
     82: 'wi-day-showers',
-    // 85: Slight snow showers
     85: 'wi-day-snow',
-    // 86: Heavy snow showers
     86: 'wi-day-snow',
-    // 95: Thunderstorm
     95: 'wi-day-thunderstorm',
-    // 96: Thunderstorm with slight hail
     96: 'wi-day-thunderstorm',
-    // 99: Thunderstorm with heavy hail
     99: 'wi-day-thunderstorm'
 };
 
-// Danske vejrbeskrivelser baseret på WMO koder
+// Nat ikoner
+const nightIconMap = {
+    0: 'wi-night-clear',
+    1: 'wi-night-alt-cloudy',
+    2: 'wi-night-alt-cloudy',
+    3: 'wi-night-alt-cloudy',
+    45: 'wi-night-fog',
+    51: 'wi-night-alt-sprinkle',
+    53: 'wi-night-alt-sprinkle',
+    55: 'wi-night-alt-sprinkle',
+    61: 'wi-night-alt-rain',
+    63: 'wi-night-alt-rain',
+    65: 'wi-night-alt-rain',
+    71: 'wi-night-alt-snow',
+    73: 'wi-night-alt-snow',
+    75: 'wi-night-alt-snow',
+    80: 'wi-night-alt-showers',
+    81: 'wi-night-alt-showers',
+    82: 'wi-night-alt-showers',
+    85: 'wi-night-alt-snow',
+    86: 'wi-night-alt-snow',
+    95: 'wi-night-alt-thunderstorm',
+    96: 'wi-night-alt-thunderstorm',
+    99: 'wi-night-alt-thunderstorm'
+};
+
+// Danske vejrbeskrivelser
 const weatherDescriptions = {
     0: 'Klar himmel',
     1: 'Overvejende klart',
@@ -113,31 +110,8 @@ const weatherDescriptions = {
     99: 'Tordenvejr med kraftig hagl'
 };
 
-// Nat ikoner (tilføj 'n' for nat version)
-const nightIconMap = {
-    0: 'wi-night-clear',
-    1: 'wi-night-alt-cloudy',
-    2: 'wi-night-alt-cloudy',
-    3: 'wi-night-alt-cloudy',
-    45: 'wi-night-fog',
-    51: 'wi-night-alt-sprinkle',
-    53: 'wi-night-alt-sprinkle',
-    55: 'wi-night-alt-sprinkle',
-    61: 'wi-night-alt-rain',
-    63: 'wi-night-alt-rain',
-    65: 'wi-night-alt-rain',
-    71: 'wi-night-alt-snow',
-    73: 'wi-night-alt-snow',
-    75: 'wi-night-alt-snow',
-    80: 'wi-night-alt-showers',
-    81: 'wi-night-alt-showers',
-    82: 'wi-night-alt-showers',
-    85: 'wi-night-alt-snow',
-    86: 'wi-night-alt-snow',
-    95: 'wi-night-alt-thunderstorm',
-    96: 'wi-night-alt-thunderstorm',
-    99: 'wi-night-alt-thunderstorm'
-};
+// Cache for location names
+const locationCache = new Map();
 
 // Hent brugerens position
 function getLocation() {
@@ -146,19 +120,23 @@ function getLocation() {
         navigator.geolocation.getCurrentPosition(
             position => {
                 const { latitude, longitude } = position.coords;
-                fetchWeatherData(latitude, longitude);
+                const cacheKey = `${latitude.toFixed(2)},${longitude.toFixed(2)}`;
+                
+                // Check cache first
+                if (locationCache.has(cacheKey)) {
+                    locationElement.textContent = locationCache.get(cacheKey);
+                    fetchWeatherData(latitude, longitude);
+                } else {
+                    fetchWeatherData(latitude, longitude);
+                }
             },
             error => {
                 showError(`Kunne ikke hente din position: ${getErrorMessage(error)}`);
-                // Prøv med en default position (København)
-                setTimeout(() => {
-                    fetchWeatherData(55.6761, 12.5683);
-                }, 2000);
+                setTimeout(() => fetchWeatherData(55.6761, 12.5683), 2000);
             }
         );
     } else {
         showError('Geolocation er ikke understøttet i din browser');
-        // Prøv med en default position (København)
         fetchWeatherData(55.6761, 12.5683);
     }
 }
@@ -166,10 +144,18 @@ function getLocation() {
 // Hent vejrdata fra Open-Meteo
 async function fetchWeatherData(lat, lon) {
     try {
-        // Hent nuværende vejr og 5-dages prognose
+        showLoading();
+        
+        // Hent nuværende vejr og 5-dages prognose i ÉN anmodning
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,relativehumidity_2m,windspeed_10m,pressure_msl&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=5`;
         
-        const response = await fetch(url);
+        // Add timeout to the fetch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 seconds timeout
+        
+        const response = await fetch(url, { signal: controller.signal });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             throw new Error('Kunne ikke hente vejrdata');
@@ -180,8 +166,10 @@ async function fetchWeatherData(lat, lon) {
         displayCurrentWeather(data, lat, lon);
         displayForecast(data);
         updateLastUpdated();
+        hideLoading();
         
     } catch (error) {
+        hideLoading();
         showError(`Fejl: ${error.message}`);
         console.error('Error fetching weather:', error);
     }
@@ -189,21 +177,21 @@ async function fetchWeatherData(lat, lon) {
 
 // Vis nuværende vejr
 function displayCurrentWeather(data, lat, lon) {
-    const { current_weather, hourly, daily, timezone } = data;
+    const { current_weather, hourly, timezone } = data;
     const { temperature, weathercode, windspeed } = current_weather;
     
-    // Get location name from reverse geocoding (using Nominatim)
-    getLocationName(lat, lon, timezone).then(locationName => {
-        locationElement.textContent = locationName;
-    }).catch(() => {
-        // Fallback: show coordinates
-        locationElement.textContent = `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
-    });
+    // Get location name from timezone (synchronous - fast!)
+    const locationName = getLocationFromTimezone(timezone, lat, lon);
+    locationElement.textContent = locationName;
+    
+    // Cache the location
+    const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+    locationCache.set(cacheKey, locationName);
     
     // Temperatur
     temperatureElement.textContent = Math.round(temperature);
     
-    // Vejrikon (dag/nat baseret på solopgang/nedgang - estimat)
+    // Vejrikon (dag/nat)
     const now = new Date();
     const hours = now.getHours();
     const isDay = hours >= 6 && hours < 18;
@@ -215,8 +203,7 @@ function displayCurrentWeather(data, lat, lon) {
     const description = weatherDescriptions[weathercode] || 'Ukendt vejr';
     descriptionElement.textContent = description;
     
-    // Føles som (approximation: use current temp for now, or calculate from humidity/wind)
-    // For simplicity, we'll use the current temperature
+    // Føles som (approximation)
     feelsLikeElement.textContent = `${Math.round(temperature)}°C`;
     
     // Luftfugtighed (get current hourly value)
@@ -237,48 +224,30 @@ function displayCurrentWeather(data, lat, lon) {
     pressureElement.textContent = `${Math.round(pressure)} hPa`;
 }
 
-// Hent stednavn fra koordinater (reverse geocoding)
-async function getLocationName(lat, lon, timezone) {
-    try {
-        // Extract timezone info (e.g., "Europe/Copenhagen")
-        const timezoneParts = timezone.split('/');
-        if (timezoneParts.length >= 2) {
-            const city = timezoneParts[1].replace('_', ' ');
-            const country = timezoneParts[0];
-            return `${city}, ${country}`;
-        }
-        
-        // Fallback: use Nominatim (OpenStreetMap)
-        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=da`;
-        const response = await fetch(url);
-        if (response.ok) {
-            const data = await response.json();
-            if (data.display_name) {
-                // Extract city and country from display_name
-                const parts = data.display_name.split(', ');
-                if (parts.length >= 2) {
-                    return `${parts[0]}, ${parts[parts.length - 1]}`;
-                }
-                return data.display_name;
-            }
-        }
-        
-        // Final fallback
-        return `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
-    } catch (error) {
-        console.error('Error getting location name:', error);
-        return `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
+// Hent stednavn fra timezone (hurtig, synkron funktion)
+function getLocationFromTimezone(timezone, lat, lon) {
+    // Timezone format: "Continent/City" or "Continent/Region/City"
+    const parts = timezone.split('/');
+    
+    if (parts.length >= 2) {
+        // Replace underscores with spaces
+        const city = parts[parts.length - 1].replace(/_/g, ' ');
+        const region = parts.length > 2 ? parts[1].replace(/_/g, ' ') : parts[0].replace(/_/g, ' ');
+        return `${city}, ${region}`;
     }
+    
+    // Fallback: show coordinates
+    return `${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E`;
 }
 
 // Vis 5-dages prognose
 function displayForecast(data) {
     forecastContainer.innerHTML = '';
     
-    const { daily, timezone } = data;
+    const { daily } = data;
     const { time, weathercode, temperature_2m_max, temperature_2m_min } = daily;
     
-    // Vis de næste 5 dage (undgå i dag hvis muligt)
+    // Vis de næste 5 dage
     const forecastsToShow = Math.min(5, time.length);
     
     for (let i = 0; i < forecastsToShow; i++) {
@@ -291,8 +260,7 @@ function displayForecast(data) {
         const maxTemp = temperature_2m_max[i];
         const minTemp = temperature_2m_min[i];
         
-        // Determine if it's day or night for the forecast icon
-        // For simplicity, assume day for forecast
+        // Use day icons for forecast
         const iconClass = weatherIconMap[code] || 'wi-cloud';
         const desc = weatherDescriptions[code] || 'Ukendt';
         
@@ -328,11 +296,9 @@ function updateLastUpdated() {
 
 // Vis fejlmeddelelse
 function showError(message) {
-    // Skjul loading
     const loading = document.querySelector('.loading');
     if (loading) loading.style.display = 'none';
     
-    // Opret eller vis fejlmeddelelse
     let errorElement = document.querySelector('.error-message');
     if (!errorElement) {
         errorElement = document.createElement('div');
@@ -341,8 +307,13 @@ function showError(message) {
     }
     errorElement.textContent = message;
     errorElement.style.display = 'block';
-    
     console.error(message);
+}
+
+// Skjul loading
+function hideLoading() {
+    const loading = document.querySelector('.loading');
+    if (loading) loading.style.display = 'none';
 }
 
 // Vis loading spinner
@@ -385,6 +356,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 position => {
                     const { latitude, longitude } = position.coords;
                     fetchWeatherData(latitude, longitude);
+                },
+                () => {
+                    // If geolocation fails, use cached location or default
+                    const cachedKey = Array.from(locationCache.keys())[0];
+                    if (cachedKey) {
+                        const [lat, lon] = cachedKey.split(',').map(parseFloat);
+                        fetchWeatherData(lat, lon);
+                    } else {
+                        fetchWeatherData(55.6761, 12.5683);
+                    }
                 }
             );
         }
